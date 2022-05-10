@@ -1,0 +1,44 @@
+/*******************************************************************************/
+Comparison of how JapserGold and IFV report strong, weak and default 
+(i.e. no explicit stong/weak operator) properties.
+/*******************************************************************************/
+1. Using explicit weak operator
+./ifv/ACID_RUN_SOL.sh - All pass except SOL_SHOULD_FAIL_SANITY_CHECK
+./jg/ACID_RUN_SOL.sh  - All pass except SOL_SHOULD_FAIL_SANITY_CHECK
+
+2. Using explicit strong operator
+./ifv/ACID_RUN_SOL_STRONG.sh - 
+All pass except SOL_SHOULD_FAIL_SANITY_CHECK and
+any property which has a RHS which may never complete, namely
+SOL_NO_EOP_WO_SOP 
+SOL_NOT_TWO_SOPS_WO_EOP
+SOL_NO_INITIAL_EOP_IMP
+
+./jg/ACID_RUN_SOL_STRONG.sh  - 
+All pass except SOL_SHOULD_FAIL_SANITY_CHECK and
+any property which has a RHS which may never complete, namely
+SOL_NO_EOP_WO_SOP 
+SOL_NOT_TWO_SOPS_WO_EOP
+SOL_NO_INITIAL_EOP_IMP
+
+3.Using default strength from 2009 and 2012 LRM ( i.e. no explicit strong/weak operator)
+./ifv/ACID_RUN_SOL_DEFAULT.sh
+All pass except SOL_SHOULD_FAIL_SANITY_CHECK and
+any property which has a RHS which may never complete, namely
+SOL_NO_EOP_WO_SOP 
+SOL_NOT_TWO_SOPS_WO_EOP
+SOL_NO_INITIAL_EOP_IMP
+
+./jg/ACID_RUN_SOL_DEFAULT.sh - All pass except SOL_SHOULD_FAIL_SANITY_CHECK
+
+Conclusions
+=========================
+a) Japsergold and IFV behave the same if explicit strong/weak operators are used.
+b) JasperGold default follows the LRM version given as a switch to the analyze command, i.e. -sv -sv09 -sv12
+c) For info the 2005 LRM states default is strong for assert and assume directives.
+d) For info the 2009 and 2012 LRM states default is weak for assert and assume directives.
+e) IFV supports strong and weak operators (only added in 2009 LRM) but the default strength is as per 2005 LRM.
+f) The properties which fail when strong operator is used explictly do so as the define a RHS which does not complete.
+   However, the equivalnet check written with Auxiliary code, and which has a property using same cycle implication
+   passes, as expected.
+
