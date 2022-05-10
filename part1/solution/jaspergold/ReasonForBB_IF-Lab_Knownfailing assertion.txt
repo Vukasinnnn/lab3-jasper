@@ -1,0 +1,3 @@
+Line 83 of ctrl.v
+  full = waddr==raddr & push & !empty_ff | (full_ff & !pop);
+The pop occurs withour rack hence no longer indicates full and hence we get a tc_ack

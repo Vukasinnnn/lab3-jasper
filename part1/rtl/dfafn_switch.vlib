@@ -1,0 +1,64 @@
+/*****************************************************************************
+
+ (c) Copyright 2005, Cadence Design Systems, Inc.                       
+ All rights reserved.                                                   
+
+ This software is the proprietary information of Cadence Design         
+ Systems, Inc. and may not be copied or reproduced in whole or in part  
+ onto any medium without Cadence's express prior written consent.       
+
+ This software is provided to the end user solely for his/her use.  No  
+ warranties are expressed or implied herein including those as to       
+ merchantability and fitness for a particular purpose.  In no event     
+ shall Cadence be held liable for loss of profit, business              
+ interruption, data, loss of information, or any other pecuniary loss   
+ including but not limited to special, incidental, consequential, or    
+ other damages.                                                         
+
+ Author: Paul Hylander
+
+******************************************************************************/
+
+
+/******************************************************************************
+  dfafn_switch provides a N input M output switch.  The width of the input
+  and output data buses is controlled by the "WIDTH" parameter.
+
+  The "select" input is a vector of length N*M sequence of M N-bit fields.
+  The M-th N-bit field is a zero-one-hot select vector for the M-th output.
+
+  If the K-th bit in the M-th N-bit field is one, then the data from input
+  K will be routed through to the M-th output.
+
+  Because verilog doesn't allow two or more dimensional I/O,
+  the inputs and outputs are N*WIDTH and M*WIDTH bits wide respectively.
+  Each field of width WIDTH corresponds to one input/output.
+******************************************************************************/
+module dfafn_switch
+#(parameter N=8, parameter M=8, parameter WIDTH=8)
+(
+    input  [N*WIDTH-1:0] datain,
+    input  [N*M-1:0] select,
+    output reg [M*WIDTH-1:0] dataout
+);
+
+`ifdef ABV_PARAM_CHECK
+// psl assert_param_check1: assert N>0 && M>0 && WIDTH>0;
+`endif
+
+integer i,j,k;
+
+reg [N-1:0] tmp; 
+
+always @* begin
+    for(k=0;k<WIDTH;k=k+1) begin
+	for(i=0;i<M;i=i+1) begin
+	    for(j=0;j<N;j=j+1) begin
+		tmp[j] = select[i*N+j] && datain[j*WIDTH+k];
+	    end
+	    dataout[i*WIDTH+k] = |tmp;
+	end
+    end
+end
+endmodule
+

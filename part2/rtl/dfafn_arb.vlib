@@ -1,0 +1,120 @@
+/*****************************************************************************
+
+ (c) Copyright 2005, Cadence Design Systems, Inc.                       
+ All rights reserved.                                                   
+
+ This software is the proprietary information of Cadence Design         
+ Systems, Inc. and may not be copied or reproduced in whole or in part  
+ onto any medium without Cadence's express prior written consent.       
+
+ This software is provided to the end user solely for his/her use.  No  
+ warranties are expressed or implied herein including those as to       
+ merchantability and fitness for a particular purpose.  In no event     
+ shall Cadence be held liable for loss of profit, business              
+ interruption, data, loss of information, or any other pecuniary loss   
+ including but not limited to special, incidental, consequential, or    
+ other damages.                                                         
+
+ Author: Paul Hylander
+
+******************************************************************************/
+
+`include "dfafn_lib.h"
+
+/******************************************************************************
+  dfafn_arb is a general purpose arbitration component which is capable of
+  the following arbitration types:
+
+  ARB_TYPE = "ROUND_ROBIN"	- round robin priority
+				- starting highest priority given by the one-hot
+				    input init_prio 
+				- priority rotates in the direction specified 
+
+  ARB_TYPE = "PRIORITY"		- fixed priority 
+				- highest priority element indicated by
+				    the one-hot input init_prio
+				- priority decreases by bit position relative
+				    to the bit position indicated by init_prio
+				    and in the direction indicated by PRIO_DIR
+
+  PRIO_DIR = "SEARCH_LEFT"	- next highest priority is the bit to left in
+				    the req vector
+
+  PRIO_DIR = "SEARCH_RIGHT"	- next highest priority is the bit to right in
+				    the req vector
+
+******************************************************************************/
+module dfafn_arb
+#(
+    parameter N=4,
+    parameter ARB_TYPE="ROUND_ROBIN",
+    parameter PRIO_DIR="SEARCH_LEFT"
+)
+(
+    input clk, rst_n,
+    output [N-1:0] gnt,
+    input [N-1:0] req,
+    input [N-1:0] last,
+    input [N-1:0] init_prio
+);
+
+wire [N-1:0] arb_result;
+wire [N-1:0] init_prio_index, next_prio_index;
+reg [N-1:0] last_arb_ff;
+reg busy_ff;
+
+generate
+if (ARB_TYPE=="ROUND_ROBIN") begin :rr_rot_reg
+
+    // for round-robin, the bit vector that the user provides
+    // as a starting point must be rotated by one in the opposite
+    // direction so that when it is fed through the normal rotation
+    // logic, the index vector starts in the right place. 
+    assign init_prio_index = PRIO_DIR=="SEARCH_RIGHT" ?
+	{init_prio[N-2:0], init_prio[N-1]} :
+	{init_prio[0], init_prio[N-1:1]} ;
+                                                                                            
+    // To find the next starting search point, we rotate the
+    // the last winner by 1 and use that as the starting
+    // search point.
+    assign next_prio_index = PRIO_DIR=="SEARCH_LEFT" ?
+	{last_arb_ff[N-2:0], last_arb_ff[N-1]} :
+	{last_arb_ff[0], last_arb_ff[N-1:1]} ;
+
+end
+
+if (ARB_TYPE=="PRIORITY") begin :prio_compute
+    assign init_prio_index = init_prio;
+    assign next_prio_index = init_prio;
+end
+
+endgenerate
+
+// Compute whether we are still busy with the current request.
+always @(posedge clk)
+    if (!rst_n)
+	busy_ff <= 1'b0;
+    else if (|(gnt & req & ~last))
+	busy_ff <= 1'b1;
+    else if (|(gnt & req & last))
+	busy_ff <= 1'b0;
+
+// Keep record of the last winner until such time as a new
+// winner occurs.  At that point keep the next new winner.
+always @(posedge clk)
+    if (!rst_n)
+	last_arb_ff <= init_prio_index;
+    else if (|gnt)
+	last_arb_ff <= gnt;
+
+// Search for the winner
+dfafn_prio_search #(.WIDTH(N), .DIR(PRIO_DIR)) prio_search (
+    .result(arb_result),
+    .value(req),
+    .prio_index(next_prio_index)
+);
+
+assign gnt =	busy_ff ? last_arb_ff :
+		(|req) ? arb_result : {N{1'b0}};
+
+endmodule

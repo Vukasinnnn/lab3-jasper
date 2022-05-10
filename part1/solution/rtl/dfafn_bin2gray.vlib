@@ -1,0 +1,40 @@
+/*****************************************************************************
+
+ (c) Copyright 2005, Cadence Design Systems, Inc.                       
+ All rights reserved.                                                   
+
+ This software is the proprietary information of Cadence Design         
+ Systems, Inc. and may not be copied or reproduced in whole or in part  
+ onto any medium without Cadence's express prior written consent.       
+
+ This software is provided to the end user solely for his/her use.  No  
+ warranties are expressed or implied herein including those as to       
+ merchantability and fitness for a particular purpose.  In no event     
+ shall Cadence be held liable for loss of profit, business              
+ interruption, data, loss of information, or any other pecuniary loss   
+ including but not limited to special, incidental, consequential, or    
+ other damages.                                                         
+
+ Author: Paul Hylander
+
+******************************************************************************/
+
+
+/******************************************************************************
+  dfafn_bin2gray returns on the output "gray_result" the conversion of
+  input "bin_value" to gray code.
+******************************************************************************/
+module dfafn_bin2gray
+#(parameter WIDTH=3)
+(
+	input  [WIDTH-1:0] bin_value,
+	output [WIDTH-1:0] gray_result
+);
+
+`ifdef ABV_PARAM_CHECK
+// psl assert_param_check1: assert WIDTH>0;
+`endif
+
+assign gray_result = bin_value ^ (bin_value>>1);
+
+endmodule

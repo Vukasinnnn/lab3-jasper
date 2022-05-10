@@ -1,0 +1,92 @@
+/*****************************************************************************
+
+ (c) Copyright 2005, Cadence Design Systems, Inc.                       
+ All rights reserved.                                                   
+
+ This software is the proprietary information of Cadence Design         
+ Systems, Inc. and may not be copied or reproduced in whole or in part  
+ onto any medium without Cadence's express prior written consent.       
+
+ This software is provided to the end user solely for his/her use.  No  
+ warranties are expressed or implied herein including those as to       
+ merchantability and fitness for a particular purpose.  In no event     
+ shall Cadence be held liable for loss of profit, business              
+ interruption, data, loss of information, or any other pecuniary loss   
+ including but not limited to special, incidental, consequential, or    
+ other damages.                                                         
+
+ Author: Paul Hylander
+
+******************************************************************************/
+
+
+`include "dfafn_lib.h"
+
+/******************************************************************************
+  dfafn_mem provides a simple N-read, M-write memory with each read and write
+  port individually clocked (positive edge clocked).
+
+  Read data is clocked by read_clk and write data is clocked by write_clk.  Note
+  that these are vectors, with each bit of the vector corresponding to a clock
+  for a given port.  Write happens at posedge of write_clk when the
+  corresponding bit of write_enable is 1.
+
+  In addition to the usual address and data I/O
+  associated with reads/writes, the contents of the memory itself are available
+  through an output pin.  This can facilitate using the memory in verification
+  applications where for example all entries in the memory must be checked for
+  uniqueness.
+
+******************************************************************************/
+module dfafn_mem
+#(parameter NREAD=1, NWRITE=1, DEPTH=3, DWIDTH=8)
+(
+    input  [NWRITE-1:0] write_clk,
+    input  [NWRITE-1:0] write_enable,
+    input  [NWRITE*DWIDTH-1:0] wdata,
+    input  [NWRITE*`dfafn_range2size(DEPTH)-1:0] waddr,
+
+    input  [NREAD-1:0] read_clk,
+    input  [NREAD*`dfafn_range2size(DEPTH)-1:0] raddr,
+    output reg [NREAD*DWIDTH-1:0] rdata,
+
+    output reg [DEPTH*DWIDTH-1:0] mem_out
+);
+
+localparam AWIDTH = `dfafn_range2size(DEPTH);
+
+`ifdef ABV_PARAM_CHECK
+// psl assert_param_check1: assert NREAD>0 && NWRITE>0 && AWIDTH>0 && DWIDTH>0;
+`endif
+
+reg [DWIDTH-1:0] mem [DEPTH-1:0];
+
+generate
+genvar i;
+
+for (i=0;i<NREAD;i=i+1) begin :read_ports
+    wire [AWIDTH-1:0] nraddr;
+    assign nraddr = raddr[i*AWIDTH +: AWIDTH];
+
+    always @(posedge read_clk[i])
+	rdata[i*DWIDTH +: DWIDTH] <= mem[nraddr];
+end // :read_ports
+
+for (i=0;i<NWRITE;i=i+1) begin :write_ports
+    wire [AWIDTH-1:0] nwaddr;
+    assign nwaddr = waddr[i*AWIDTH +: AWIDTH];
+
+    always @(posedge write_clk[i]) begin
+	if (write_enable[i])
+	    mem[nwaddr] <= wdata[i*DWIDTH +: DWIDTH];
+    end
+end // :write_ports
+
+endgenerate
+
+integer j;
+always @*
+    for (j=0;j<DEPTH;j=j+1) mem_out[j*DWIDTH +: DWIDTH] = mem[j];
+
+endmodule
+

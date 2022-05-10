@@ -1,0 +1,97 @@
+/*****************************************************************************
+
+ (c) Copyright 2005, Cadence Design Systems, Inc.                       
+ All rights reserved.                                                   
+
+ This software is the proprietary information of Cadence Design         
+ Systems, Inc. and may not be copied or reproduced in whole or in part  
+ onto any medium without Cadence's express prior written consent.       
+
+ This software is provided to the end user solely for his/her use.  No  
+ warranties are expressed or implied herein including those as to       
+ merchantability and fitness for a particular purpose.  In no event     
+ shall Cadence be held liable for loss of profit, business              
+ interruption, data, loss of information, or any other pecuniary loss   
+ including but not limited to special, incidental, consequential, or    
+ other damages.                                                         
+
+ Author: Paul Hylander
+
+******************************************************************************/
+
+
+/******************************************************************************
+  dfafn_scoreboard provides a N-entry scoreboard.  Each scoreboard entry
+  has a valid bit and associated value that is WIDTH bits wide.
+
+  An entry can be inserted in the scoreboard by providing a scoreboard write
+  index while asserting the write-enable signal.  The value that is written
+  into that scoreboard entry is provided on the write value input.
+
+  An entry can be queried by providing a read-index.  The value of the read
+  entry is provided combinationally out the read value output.
+
+  An entry can be invalidated on the next rising edge of clock by providing
+  a read-index while simultaneously asserting the invalidate input.
+
+  Values written to entry M are reflected on the read value output
+  combinationally if that read entry is selected.
+
+  A write and a read-invalidate to the same entry with cause the conflict
+  signal to be asserted.  The invalidate takes precedence in such situations.
+
+  A write to an already valid entry will cause the already valid signal
+  to be asserted.
+
+  A read from an invalid entry will cause the invalid read signal to be
+  asserted.
+
+******************************************************************************/
+module dfafn_scoreboard
+#(parameter N=8, parameter WIDTH=1)
+(
+    input  clk,
+    input  rst_n,
+
+    input  write_enable,
+    input  [`dfafn_range2size(N)-1:0] write_index,
+    input  [WIDTH-1:0] write_value,
+
+    input  read_invalidate,
+    input  [`dfafn_range2size(N)-1:0] read_index,
+    output  [WIDTH-1:0] read_value,
+
+    output read_write_conflict,
+    output already_valid,
+    output invalid_read
+);
+
+`ifdef ABV_PARAM_CHECK
+// psl assert_param_check1: assert N>0 && WIDTH>0;
+`endif
+
+reg [WIDTH-1:0] mem [N-1:0];
+reg [N-1:0] valid_array;
+
+assign read_value = read_index==write_index ? write_value : mem[read_index];
+
+assign read_write_conflict = read_invalidate && read_index==write_index;
+
+assign already_valid = write_enable && valid_array[write_index];
+
+assign invalid_read = !valid_array[read_index];
+
+always @(posedge clk)
+    if (!rst_n) begin
+	valid_array <= {N{1'b0}};
+    end
+    else if (!read_write_conflict) begin
+	valid_array[write_index] <= 1'b1;
+	mem[write_index] <= write_value;
+    end
+    else if (read_write_conflict) begin
+	valid_array[write_index] <= 1'b0;
+    end
+	
+endmodule
+
